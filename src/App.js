@@ -1,27 +1,9 @@
 import React, { useState, useEffect } from "react"
+import shuffle from "./utils/shuffle"
+import mod from "./utils/mod"
 import countries from "./countries.json"
 
 const flagUrl = "https://restcountries.eu/data/"
-
-function shuffle(array) {
-  var currentIndex = array.length,
-    temporaryValue,
-    randomIndex
-
-  // While there remain elements to shuffle...
-  while (0 !== currentIndex) {
-    // Pick a remaining element...
-    randomIndex = Math.floor(Math.random() * currentIndex)
-    currentIndex -= 1
-
-    // And swap it with the current element.
-    temporaryValue = array[currentIndex]
-    array[currentIndex] = array[randomIndex]
-    array[randomIndex] = temporaryValue
-  }
-
-  return array
-}
 
 function App() {
   const [remainingCountries, setRemainingCountries] = useState([
@@ -34,10 +16,6 @@ function App() {
     remainingCountries[currentIndex]
   )
   const [gameOver, setGameOver] = useState(false)
-
-  const mod = (n, m) => {
-    return n - m * Math.floor(n / m)
-  }
 
   const endGame = () => {
     setGameOver(true)
