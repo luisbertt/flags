@@ -1,60 +1,129 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useReducer } from "react"
 import shuffle from "./utils/shuffle"
-import mod from "./utils/mod"
 import countries from "./countries.json"
 
 const flagUrl = "https://restcountries.eu/data/"
 
+const CountriesList = ({ title, countries }) => (
+  <div className="mt-5">
+    <h3 className="font-bold">
+      {title}: ({countries.length})
+    </h3>
+    <div className="flex flex-wrap ">
+      {countries.map(({ name, code }) => (
+        <div key={code} className="flex border h-6 w-1/12 items-center">
+          <img
+            className="h-full w-8"
+            alt={name}
+            src={flagUrl + code + ".svg"}
+          />
+          <p className="text-xs text-center w-full truncate">{name}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+)
+
+const countriesReducer = (state, { type }) => {
+  const {
+    remainingCountries,
+    guessedCountries,
+    currentIndex,
+    currentCountry,
+  } = state
+
+  switch (type) {
+    case "GUESSED":
+      const newRemainingCountries = remainingCountries.filter(
+        ({ code }) => code !== currentCountry.code
+      )
+      const newIndex =
+        (currentIndex + newRemainingCountries.length) %
+        newRemainingCountries.length
+      return {
+        guessedCountries: [
+          ...guessedCountries,
+          ...remainingCountries.filter(
+            ({ code }) => code === currentCountry.code
+          ),
+        ],
+        currentIndex: newIndex,
+        remainingCountries: newRemainingCountries,
+        currentCountry: newRemainingCountries[newIndex],
+      }
+
+    case "NEXT":
+      let nextIndex =
+        (currentIndex + 1 + remainingCountries.length) %
+        remainingCountries.length
+      return {
+        guessedCountries,
+        remainingCountries,
+        currentIndex: newIndex,
+        currentCountry: remainingCountries[nextIndex],
+      }
+    case "PREV":
+      const prevIndex =
+        (currentIndex - 1 + remainingCountries.length) %
+        remainingCountries.length
+      return {
+        guessedCountries,
+        remainingCountries,
+        currentIndex: prevIndex,
+        currentCountry: remainingCountries[prevIndex],
+      }
+
+    case "RESET":
+      const shuffledCountries = shuffle(countries)
+      return {
+        guessedCountries: [],
+        remainingCountries: shuffledCountries,
+        currentIndex: 0,
+        currentCountry: shuffledCountries[0],
+      }
+    default:
+      return state
+  }
+}
+
 function App() {
-  const [remainingCountries, setRemainingCountries] = useState([
-    ...shuffle(countries),
-  ])
-  const [guessedCountries, setGuessedCountries] = useState([])
+  const shuffledCountries = shuffle(countries)
+  const [
+    { remainingCountries, guessedCountries, currentCountry },
+    dispatch,
+  ] = useReducer(countriesReducer, {
+    remainingCountries: shuffledCountries,
+    guessedCountries: [],
+    currentIndex: 0,
+    currentCountry: shuffledCountries[0],
+  })
+
   const [input, setInput] = useState("")
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [currentCountry, setCurrentCountry] = useState(
-    remainingCountries[currentIndex]
-  )
   const [gameOver, setGameOver] = useState(false)
+
+  const startGame = () => {
+    setGameOver(false)
+    dispatch({ type: "RESET" })
+  }
 
   const endGame = () => {
     setGameOver(true)
   }
 
-  const startGame = () => {
-    setGameOver(false)
-    setGuessedCountries([])
-    setRemainingCountries([...shuffle(countries)])
-    setCurrentIndex(0)
-  }
-
   const prev = () => {
-    setCurrentIndex(mod(currentIndex - 1, remainingCountries.length))
+    dispatch({ type: "PREV" })
   }
 
   const next = () => {
-    setCurrentIndex(mod(currentIndex + 1, remainingCountries.length))
+    dispatch({ type: "NEXT" })
   }
 
   useEffect(() => {
-    setCurrentCountry(remainingCountries[currentIndex])
-  }, [currentIndex])
-
-  useEffect(() => {
-    setCurrentCountry(remainingCountries[currentIndex])
-  }, [remainingCountries])
-
-  useEffect(() => {
-    if (input === currentCountry.name.toLowerCase()) {
+    if (input.trim() === currentCountry.name.toLowerCase()) {
       setInput("")
-      setGuessedCountries(gc =>
-        gc.concat(remainingCountries.splice(currentIndex, 1))
-      )
-      setRemainingCountries(rc =>
-        rc.filter(({ name }) => name !== currentCountry.name)
-      )
+      dispatch({ type: "GUESSED", payload: currentCountry })
     }
-  }, [input])
+  }, [input, currentCountry])
 
   return (
     <div className="h-screen p-10">
@@ -92,64 +161,21 @@ function App() {
             {parseInt((guessedCountries.length * 100) / countries.length)}%
           </p>
         </div>
-        <div className="w-24">
-          {gameOver ? (
-            <button className="text-sm text-blue-500" onClick={startGame}>
-              restart
-            </button>
-          ) : (
-            <button className="text-sm text-blue-500" onClick={endGame}>
-              give up?
-            </button>
-          )}
-          {/* <ul className="flex text-sm space-x-4">
-            <li>freeplay</li>
-            <li>5min</li>
-            <li>10min</li>
-            <li>15min</li>
-            <li>20min</li>
-          </ul> */}
-        </div>
+        <button
+          className="text-sm text-blue-500"
+          onClick={gameOver ? startGame : endGame}
+        >
+          {gameOver ? "start" : "give up?"}
+        </button>
       </div>
       {guessedCountries.length > 0 && (
-        <div className="mt-10">
-          <h3 className="font-bold">
-            Guessed Countries: ({guessedCountries.length})
-          </h3>
-          <div className="flex flex-wrap ">
-            {guessedCountries.map(({ name, code }) => (
-              <div key={code} className="flex border h-6 w-1/12 items-center">
-                <img
-                  className="h-full w-8"
-                  alt={name}
-                  src={flagUrl + code + ".svg"}
-                />
-                <p className="text-xs text-center w-full truncate">{name}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+        <CountriesList title="Guessed Countries" countries={guessedCountries} />
       )}
       {gameOver && (
-        <div className="mt-10">
-          <h3 className="font-bold">
-            Remaining Countries: ({remainingCountries.length})
-          </h3>
-          <div className="flex flex-wrap ">
-            {remainingCountries.map(({ name, code }) => (
-              <div key={code} className="flex border h-6 w-1/12 items-center">
-                <img
-                  className="h-full w-8"
-                  alt={name}
-                  src={flagUrl + code + ".svg"}
-                />
-                <p className="text-xs text-red-600 text-center w-full truncate">
-                  {name}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+        <CountriesList
+          title="Remaining Countries"
+          countries={remainingCountries}
+        />
       )}
     </div>
   )
